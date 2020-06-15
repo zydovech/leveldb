@@ -10,7 +10,7 @@
 #include "util/coding.h"
 
 namespace leveldb {
-
+    //用于获取varint32编码的数据
 static Slice GetLengthPrefixedSlice(const char* data) {
   uint32_t len;
   const char* p = data;
@@ -28,9 +28,9 @@ size_t MemTable::ApproximateMemoryUsage() { return arena_.MemoryUsage(); }
 int MemTable::KeyComparator::operator()(const char* aptr,
                                         const char* bptr) const {
   // Internal keys are encoded as length-prefixed strings.
-  Slice a = GetLengthPrefixedSlice(aptr);
-  Slice b = GetLengthPrefixedSlice(bptr);
-  return comparator.Compare(a, b);
+  Slice a = GetLengthPrefixedSlice(aptr); //获取到internal_key
+  Slice b = GetLengthPrefixedSlice(bptr);//获取到internal_key
+  return comparator.Compare(a, b); //用internal_key进行比较
 }
 
 // Encode a suitable internal key target for "target" and return it.
@@ -82,24 +82,31 @@ void MemTable::Add(SequenceNumber s, ValueType type, const Slice& key,
   //  value bytes  : char[value.size()]
   size_t key_size = key.size();
   size_t val_size = value.size();
+  //uKey会转换为内部的key...加上8个字节
   size_t internal_key_size = key_size + 8;
   const size_t encoded_len = VarintLength(internal_key_size) +
                              internal_key_size + VarintLength(val_size) +
                              val_size;
   char* buf = arena_.Allocate(encoded_len);
+  //先把internal_key_size进行编码
   char* p = EncodeVarint32(buf, internal_key_size);
+  //先把uKey拷贝过去
   std::memcpy(p, key.data(), key_size);
   p += key_size;
+  //然后把sequence和type加在后面
   EncodeFixed64(p, (s << 8) | type);
   p += 8;
+  //编码val
   p = EncodeVarint32(p, val_size);
   std::memcpy(p, value.data(), val_size);
   assert(p + val_size == buf + encoded_len);
+  //插入的是internal_key_size+internal_key+val_size+val
   table_.Insert(buf);
 }
 
 bool MemTable::Get(const LookupKey& key, std::string* value, Status* s) {
-  Slice memkey = key.memtable_key();
+    //memkey是包含了internal_key_size+internal_key的数据
+    Slice memkey = key.memtable_key();
   Table::Iterator iter(&table_);
   iter.Seek(memkey.data());
   if (iter.Valid()) {
@@ -114,18 +121,19 @@ bool MemTable::Get(const LookupKey& key, std::string* value, Status* s) {
     // all entries with overly large sequence numbers.
     const char* entry = iter.key();
     uint32_t key_length;
+    //从key_ptr到末尾的8个字节前面，就是
     const char* key_ptr = GetVarint32Ptr(entry, entry + 5, &key_length);
     if (comparator_.comparator.user_comparator()->Compare(
-            Slice(key_ptr, key_length - 8), key.user_key()) == 0) {
-      // Correct user key
+            Slice(key_ptr, key_length - 8), key.user_key()) == 0) { //找到了对应的key
+      // Correct user key 解码type
       const uint64_t tag = DecodeFixed64(key_ptr + key_length - 8);
       switch (static_cast<ValueType>(tag & 0xff)) {
-        case kTypeValue: {
+        case kTypeValue: {//是正常的value，则说明找到了
           Slice v = GetLengthPrefixedSlice(key_ptr + key_length);
           value->assign(v.data(), v.size());
           return true;
         }
-        case kTypeDeletion:
+        case kTypeDeletion: //如果已经被删除了，则返回没有找到
           *s = Status::NotFound(Slice());
           return true;
       }

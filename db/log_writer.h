@@ -12,7 +12,7 @@
 #include "leveldb/status.h"
 
 namespace leveldb {
-
+//封装的用来写文件的接口
 class WritableFile;
 
 namespace log {
@@ -39,8 +39,8 @@ class Writer {
  private:
   Status EmitPhysicalRecord(RecordType type, const char* ptr, size_t length);
 
-  WritableFile* dest_;
-  int block_offset_;  // Current offset in block
+  WritableFile* dest_; //存放数据的地方
+  int block_offset_;  // Current offset in block //当前block的offset。。并没有一个物理的存在
 
   // crc32c values for all supported record types.  These are
   // pre-computed to reduce the overhead of computing the crc of the

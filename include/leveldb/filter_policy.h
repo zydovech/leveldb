@@ -34,13 +34,15 @@ class LEVELDB_EXPORT FilterPolicy {
   // passed to methods of this type.
   virtual const char* Name() const = 0;
 
-  // keys[0,n-1] contains a list of keys (potentially with duplicates)
+  // keys[0,n-1] contains a list of keys (potentially with duplicates) keys是 key的数组
   // that are ordered according to the user supplied comparator.
   // Append a filter that summarizes keys[0,n-1] to *dst.
   //
   // Warning: do not change the initial contents of *dst.  Instead,
-  // append the newly constructed filter to *dst.
-  virtual void CreateFilter(const Slice* keys, int n,
+  // append the newly constructed filter to *dst. 不会改变之前的dst的是，会追加到dst中
+    // dst就是上面讲的bitmap，n表示有多少个key，这个函数就是通过传进来的keys，来构建一个bitmap
+
+    virtual void CreateFilter(const Slice* keys, int n,
                             std::string* dst) const = 0;
 
   // "filter" contains the data appended by a preceding call to
@@ -48,7 +50,8 @@ class LEVELDB_EXPORT FilterPolicy {
   // the key was in the list of keys passed to CreateFilter().
   // This method may return true or false if the key was not on the
   // list, but it should aim to return false with a high probability.
-  virtual bool KeyMayMatch(const Slice& key, const Slice& filter) const = 0;
+    // bitmap中有没有key
+    virtual bool KeyMayMatch(const Slice& key, const Slice& filter) const = 0;
 };
 
 // Return a new filter policy that uses a bloom filter with approximately

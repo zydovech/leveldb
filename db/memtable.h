@@ -67,11 +67,13 @@ class MemTable {
   friend class MemTableBackwardIterator;
 
   struct KeyComparator {
+      //里面有个InternalKeyComparator
     const InternalKeyComparator comparator;
     explicit KeyComparator(const InternalKeyComparator& c) : comparator(c) {}
+    //重载了()运算符
     int operator()(const char* a, const char* b) const;
   };
-
+  //SkipList里面的元素是const char*的，比较器是KeyComparator
   typedef SkipList<const char*, KeyComparator> Table;
 
   ~MemTable();  // Private since only Unref() should be used to delete it

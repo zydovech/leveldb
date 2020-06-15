@@ -44,8 +44,8 @@ Status TableCache::FindTable(uint64_t file_number, uint64_t file_size,
   char buf[sizeof(file_number)];
   EncodeFixed64(buf, file_number);
   Slice key(buf, sizeof(buf));
-  *handle = cache_->Lookup(key);
-  if (*handle == nullptr) {
+  *handle = cache_->Lookup(key); //先从cache里面找
+  if (*handle == nullptr) {//找到了的话，就直接返回了
     std::string fname = TableFileName(dbname_, file_number);
     RandomAccessFile* file = nullptr;
     Table* table = nullptr;
@@ -69,7 +69,8 @@ Status TableCache::FindTable(uint64_t file_number, uint64_t file_size,
       TableAndFile* tf = new TableAndFile;
       tf->file = file;
       tf->table = table;
-      *handle = cache_->Insert(key, tf, 1, &DeleteEntry);
+      //这个缓存的就是一个TableAndFile？
+      *handle = cache_->Insert(key, tf, 1, &DeleteEntry); //找到之后，插入到cache中
     }
   }
   return s;

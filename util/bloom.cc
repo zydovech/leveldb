@@ -20,6 +20,7 @@ class BloomFilterPolicy : public FilterPolicy {
     // We intentionally round down to reduce probing cost a little bit
     k_ = static_cast<size_t>(bits_per_key * 0.69);  // 0.69 =~ ln(2)
     if (k_ < 1) k_ = 1;
+
     if (k_ > 30) k_ = 30;
   }
 
@@ -80,7 +81,9 @@ class BloomFilterPolicy : public FilterPolicy {
   }
 
  private:
+  //m个bit,n个key。。。m/n 就是一个key占用的bit个数
   size_t bits_per_key_;
+  //hash函数的个数
   size_t k_;
 };
 }  // namespace

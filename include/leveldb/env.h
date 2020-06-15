@@ -274,6 +274,7 @@ class LEVELDB_EXPORT RandomAccessFile {
 // A file abstraction for sequential writing.  The implementation
 // must provide buffering since callers may append small fragments
 // at a time to the file.
+//对顺序写的一个抽象，
 class LEVELDB_EXPORT WritableFile {
  public:
   WritableFile() = default;
@@ -282,7 +283,7 @@ class LEVELDB_EXPORT WritableFile {
   WritableFile& operator=(const WritableFile&) = delete;
 
   virtual ~WritableFile();
-
+  //只管追加数据
   virtual Status Append(const Slice& data) = 0;
   virtual Status Close() = 0;
   virtual Status Flush() = 0;

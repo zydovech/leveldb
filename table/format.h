@@ -66,8 +66,8 @@ class Footer {
   Status DecodeFrom(Slice* input);
 
  private:
-  BlockHandle metaindex_handle_;
-  BlockHandle index_handle_;
+  BlockHandle metaindex_handle_; //记录一个metaindex block的handler
+  BlockHandle index_handle_; //记录一个index block的handler
 };
 
 // kTableMagicNumber was picked by running

@@ -45,11 +45,12 @@ Status Writer::AddRecord(const Slice& slice) {
     assert(leftover >= 0);
     if (leftover < kHeaderSize) {
       // Switch to a new block
-      if (leftover > 0) {
+      if (leftover > 0) { //如果剩余空间不够了，则进行填充
         // Fill the trailer (literal below relies on kHeaderSize being 7)
         static_assert(kHeaderSize == 7, "");
         dest_->Append(Slice("\x00\x00\x00\x00\x00\x00", leftover));
       }
+      //更新为0
       block_offset_ = 0;
     }
 
@@ -61,7 +62,7 @@ Status Writer::AddRecord(const Slice& slice) {
 
     RecordType type;
     const bool end = (left == fragment_length);
-    if (begin && end) {
+    if (begin && end) {//开始和结束，则是一个完整的record
       type = kFullType;
     } else if (begin) {
       type = kFirstType;
@@ -96,6 +97,7 @@ Status Writer::EmitPhysicalRecord(RecordType t, const char* ptr,
   EncodeFixed32(buf, crc);
 
   // Write the header and the payload
+  //往file里面写数据
   Status s = dest_->Append(Slice(buf, kHeaderSize));
   if (s.ok()) {
     s = dest_->Append(Slice(ptr, length));

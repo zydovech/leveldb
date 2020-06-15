@@ -24,6 +24,7 @@
 namespace leveldb {
 
 // WriteBatch header has an 8-byte sequence number followed by a 4-byte count.
+//writebatch是8个字节的sequence 加上4个字节的count
 static const size_t kHeader = 12;
 
 WriteBatch::WriteBatch() { Clear(); }
@@ -44,18 +45,21 @@ Status WriteBatch::Iterate(Handler* handler) const {
   if (input.size() < kHeader) {
     return Status::Corruption("malformed WriteBatch (too small)");
   }
-
+    //把头部去掉
   input.remove_prefix(kHeader);
   Slice key, value;
   int found = 0;
   while (!input.empty()) {
     found++;
+    //0位是tag
     char tag = input[0];
+    //去掉type位置
     input.remove_prefix(1);
     switch (tag) {
       case kTypeValue:
         if (GetLengthPrefixedSlice(&input, &key) &&
             GetLengthPrefixedSlice(&input, &value)) {
+            //获取kv信息，插入到memtable中
           handler->Put(key, value);
         } else {
           return Status::Corruption("bad WriteBatch Put");
@@ -63,6 +67,7 @@ Status WriteBatch::Iterate(Handler* handler) const {
         break;
       case kTypeDeletion:
         if (GetLengthPrefixedSlice(&input, &key)) {
+            //删除key
           handler->Delete(key);
         } else {
           return Status::Corruption("bad WriteBatch Delete");
@@ -131,6 +136,7 @@ class MemTableInserter : public WriteBatch::Handler {
 
 Status WriteBatchInternal::InsertInto(const WriteBatch* b, MemTable* memtable) {
   MemTableInserter inserter;
+  //获取sequence
   inserter.sequence_ = WriteBatchInternal::Sequence(b);
   inserter.mem_ = memtable;
   return b->Iterate(&inserter);
@@ -142,8 +148,10 @@ void WriteBatchInternal::SetContents(WriteBatch* b, const Slice& contents) {
 }
 
 void WriteBatchInternal::Append(WriteBatch* dst, const WriteBatch* src) {
-  SetCount(dst, Count(dst) + Count(src));
+  //改变count
+    SetCount(dst, Count(dst) + Count(src));
   assert(src->rep_.size() >= kHeader);
+  //把头部剩下的数据添加到后面，头部就是12个字节
   dst->rep_.append(src->rep_.data() + kHeader, src->rep_.size() - kHeader);
 }
 

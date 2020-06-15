@@ -124,11 +124,16 @@ LookupKey::LookupKey(const Slice& user_key, SequenceNumber s) {
     dst = new char[needed];
   }
   start_ = dst;
+  //编码internal_key的大小
   dst = EncodeVarint32(dst, usize + 8);
+  //k开始的地方
   kstart_ = dst;
+  //先拷贝uKey到dst
   std::memcpy(dst, user_key.data(), usize);
   dst += usize;
+  //在uKey后面加上sequence和type
   EncodeFixed64(dst, PackSequenceAndType(s, kValueTypeForSeek));
+  //加上8个字节的大小
   dst += 8;
   end_ = dst;
 }

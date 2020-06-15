@@ -37,13 +37,13 @@ struct TableBuilder::Rep {
 
   Options options;
   Options index_block_options;
-  WritableFile* file;
-  uint64_t offset;
+  WritableFile* file; //要生成的.sst文件
+  uint64_t offset; //累加每个Data Block的偏移量，指向最新的data block的偏移量
   Status status;
-  BlockBuilder data_block;
-  BlockBuilder index_block;
-  std::string last_key;
-  int64_t num_entries;
+  BlockBuilder data_block; //存储KV对的数据块
+  BlockBuilder index_block; //数据块对应的索引块
+  std::string last_key; //上一个插入的key值，新插入的key必须比它大，保证.sst文件中的key是从小到大排列的
+  int64_t num_entries; //.sst文件中存储的所有记录总数
   bool closed;  // Either Finish() or Abandon() has been called.
   FilterBlockBuilder* filter_block;
 
@@ -56,8 +56,8 @@ struct TableBuilder::Rep {
   // blocks.
   //
   // Invariant: r->pending_index_entry is true only if data_block is empty.
-  bool pending_index_entry;
-  BlockHandle pending_handle;  // Handle to add to index block
+  bool pending_index_entry; //当一个Data Block被写入到.sst文件时，为true
+  BlockHandle pending_handle;  // Handle to add to index block //BlockHandle只有offset_和size_两个变量，用来记录每个Data Block在.sst文件中的偏移量和大小
 
   std::string compressed_output;
 };
@@ -99,41 +99,50 @@ void TableBuilder::Add(const Slice& key, const Slice& value) {
     assert(r->options.comparator->Compare(key, Slice(r->last_key)) > 0);
   }
 
-  if (r->pending_index_entry) {
+  if (r->pending_index_entry) {//pending_index_entry为true,代表data_block已经刷新到sst
     assert(r->data_block.empty());
+      // 考虑这两个key"the quick brown fox"和"the who"， 进FindShortestSeparator
+      // 处理后，r->last_key=the r。这样的话r->last_key就大于上一个Data Block的
+      // 所有key，并且小于后面所有Data Block的key。
     r->options.comparator->FindShortestSeparator(&r->last_key, key);
-    std::string handle_encoding;
+    // 将上一个Data Block的偏移和大小编码后作为Value存放到index_block中
+      std::string handle_encoding;
     r->pending_handle.EncodeTo(&handle_encoding);
-    r->index_block.Add(r->last_key, Slice(handle_encoding));
+      r->index_block.Add(r->last_key, Slice(handle_encoding));
     r->pending_index_entry = false;
   }
 
-  if (r->filter_block != nullptr) {
+  if (r->filter_block != nullptr) {//这里也就是说，filter_block是有可能不存在的
     r->filter_block->AddKey(key);
   }
 
   r->last_key.assign(key.data(), key.size());
   r->num_entries++;
+  //往data_block里面添加数据
   r->data_block.Add(key, value);
 
   const size_t estimated_block_size = r->data_block.CurrentSizeEstimate();
-  if (estimated_block_size >= r->options.block_size) {
+    // 如果Data Block的block_data字段大小满足要求，准备写入到磁盘,默认是4K
+  if (estimated_block_size >= r->options.block_size) { //如果当前block的大小，达到了规定的大小。则需要写到文件中了
     Flush();
   }
 }
-
+//写一个data block到.sst
 void TableBuilder::Flush() {
   Rep* r = rep_;
   assert(!r->closed);
   if (!ok()) return;
   if (r->data_block.empty()) return;
   assert(!r->pending_index_entry);
+  //写block
   WriteBlock(&r->data_block, &r->pending_handle);
   if (ok()) {
-    r->pending_index_entry = true;
-    r->status = r->file->Flush();
+      r->pending_index_entry = true;
+      // 将Data Block实时写入到磁盘，防止缓存中的file过大
+      r->status = r->file->Flush();
   }
   if (r->filter_block != nullptr) {
+      //依据当前block的偏移量来生成对应的filter_block
     r->filter_block->StartBlock(r->offset);
   }
 }
@@ -195,6 +204,7 @@ void TableBuilder::WriteRawBlock(const Slice& block_contents,
 
 Status TableBuilder::status() const { return rep_->status; }
 
+//这个finish是干啥的？
 Status TableBuilder::Finish() {
   Rep* r = rep_;
   Flush();
@@ -203,14 +213,17 @@ Status TableBuilder::Finish() {
 
   BlockHandle filter_block_handle, metaindex_block_handle, index_block_handle;
 
-  // Write filter block
+  // Write filter block 就是写meta block目前meta block只有一个block，就是filter block
+  // 一次性写入filter block
   if (ok() && r->filter_block != nullptr) {
     WriteRawBlock(r->filter_block->Finish(), kNoCompression,
                   &filter_block_handle);
   }
 
-  // Write metaindex block
+  // Write metaindex block， metaindex block也只有一个
+  // 写入 meta index block, 即 filter block’s index. key 为 filter 名字，value为 filter_block_handle 序列化后的值，这个 block 只有一条数据。
   if (ok()) {
+      //meataindex block只有一个entry吗？
     BlockBuilder meta_index_block(&r->options);
     if (r->filter_block != nullptr) {
       // Add mapping from "filter.Name" to location of filter data
@@ -218,6 +231,7 @@ Status TableBuilder::Finish() {
       key.append(r->options.filter_policy->Name());
       std::string handle_encoding;
       filter_block_handle.EncodeTo(&handle_encoding);
+      //添加一条记录  key: filter.Name val : offset&size
       meta_index_block.Add(key, handle_encoding);
     }
 
@@ -225,12 +239,15 @@ Status TableBuilder::Finish() {
     WriteBlock(&meta_index_block, &metaindex_block_handle);
   }
 
-  // Write index block
+  // Write index block . index block只有一个
   if (ok()) {
     if (r->pending_index_entry) {
+        // 最后一个Data_Block，无法进行r->last_key和key的比较，
+        // 所以只能调用FindShortSuccessor，直接取一个比r->last_key大的key
       r->options.comparator->FindShortSuccessor(&r->last_key);
       std::string handle_encoding;
       r->pending_handle.EncodeTo(&handle_encoding);
+      //这里index_block可以添加多个entry
       r->index_block.Add(r->last_key, Slice(handle_encoding));
       r->pending_index_entry = false;
     }
@@ -243,7 +260,9 @@ Status TableBuilder::Finish() {
     footer.set_metaindex_handle(metaindex_block_handle);
     footer.set_index_handle(index_block_handle);
     std::string footer_encoding;
+    //编码，footer中包括metaindex_handler +index_handler+ magic_num
     footer.EncodeTo(&footer_encoding);
+    //写到文件中
     r->status = r->file->Append(footer_encoding);
     if (r->status.ok()) {
       r->offset += footer_encoding.size();

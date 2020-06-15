@@ -20,10 +20,10 @@ struct FileMetaData {
 
   int refs;
   int allowed_seeks;  // Seeks allowed until compaction
-  uint64_t number;
-  uint64_t file_size;    // File size in bytes
-  InternalKey smallest;  // Smallest internal key served by table
-  InternalKey largest;   // Largest internal key served by table
+  uint64_t number; //文件的序列号，从小到大开始增长的
+  uint64_t file_size;    // File size in bytes 文件大小
+  InternalKey smallest;  // Smallest internal key served by table 该table的最小key
+  InternalKey largest;   // Largest internal key served by table 该table的最大key
 };
 
 class VersionEdit {

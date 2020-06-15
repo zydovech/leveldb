@@ -109,7 +109,7 @@ inline const char* GetVarint32Ptr(const char* p, const char* limit,
                                   uint32_t* value) {
   if (p < limit) {
     uint32_t result = *(reinterpret_cast<const uint8_t*>(p));
-    if ((result & 128) == 0) {
+    if ((result & 128) == 0) { //等于0，代表就用一个字节编码。直接返回就行
       *value = result;
       return p + 1;
     }

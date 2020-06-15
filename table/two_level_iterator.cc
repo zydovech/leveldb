@@ -80,9 +80,13 @@ TwoLevelIterator::TwoLevelIterator(Iterator* index_iter,
 TwoLevelIterator::~TwoLevelIterator() = default;
 
 void TwoLevelIterator::Seek(const Slice& target) {
-  index_iter_.Seek(target);
+    // 先在 index block 找到第一个>= target 的k:v, v是某个data_block的size&offset
+    index_iter_.Seek(target);
+    //依据当前index_iter的值，来获取该block的数据
   InitDataBlock();
-  if (data_iter_.iter() != nullptr) data_iter_.Seek(target);
+  if (data_iter_.iter() != nullptr)
+      //seek到对应的位置
+      data_iter_.Seek(target);
   SkipEmptyDataBlocksForward();
 }
 

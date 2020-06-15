@@ -154,14 +154,14 @@ class Version {
   std::vector<FileMetaData*> files_[config::kNumLevels];
 
   // Next file to compact based on seek stats.
-  FileMetaData* file_to_compact_;
-  int file_to_compact_level_;
+  FileMetaData* file_to_compact_; //需要被压缩的文件
+  int file_to_compact_level_; //该文件所在的level
 
   // Level that should be compacted next and its compaction score.
   // Score < 1 means compaction is not strictly needed.  These fields
-  // are initialized by Finalize().
-  double compaction_score_;
-  int compaction_level_;
+  // are initialized by Finalize(). 下面这个是阈值
+  double compaction_score_; //记录压缩的分数
+  int compaction_level_; //记录需要压缩的level
 };
 
 class VersionSet {
@@ -301,17 +301,18 @@ class VersionSet {
   uint64_t next_file_number_;
   uint64_t manifest_file_number_;
   uint64_t last_sequence_;
-  uint64_t log_number_;
+
+  uint64_t log_number_; //应该就是日志文件的序号
   uint64_t prev_log_number_;  // 0 or backing store for memtable being compacted
 
   // Opened lazily
   WritableFile* descriptor_file_;
-  log::Writer* descriptor_log_;
+  log::Writer* descriptor_log_; //manifest 文件
   Version dummy_versions_;  // Head of circular doubly-linked list of versions.
   Version* current_;        // == dummy_versions_.prev_
 
   // Per-level key at which the next compaction at that level should start.
-  // Either an empty string, or a valid InternalKey.
+  // Either an empty string, or a valid InternalKey. 记录了该层上次 compact 时文件的 largest key
   std::string compact_pointer_[config::kNumLevels];
 };
 

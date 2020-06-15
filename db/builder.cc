@@ -29,14 +29,17 @@ Status BuildTable(const std::string& dbname, Env* env, const Options& options,
     }
 
     TableBuilder* builder = new TableBuilder(options, file);
+    //先把smallest给拿出来。
     meta->smallest.DecodeFrom(iter->key());
     for (; iter->Valid(); iter->Next()) {
+        //迭代所有的数据，往tableBuilder里面添加
       Slice key = iter->key();
       meta->largest.DecodeFrom(key);
       builder->Add(key, iter->value());
     }
 
     // Finish and check for builder errors
+    //写文件
     s = builder->Finish();
     if (s.ok()) {
       meta->file_size = builder->FileSize();
@@ -46,6 +49,7 @@ Status BuildTable(const std::string& dbname, Env* env, const Options& options,
 
     // Finish and check for file errors
     if (s.ok()) {
+        //同步写
       s = file->Sync();
     }
     if (s.ok()) {

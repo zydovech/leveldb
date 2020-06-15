@@ -43,6 +43,7 @@ class LEVELDB_EXPORT Cache {
   virtual ~Cache();
 
   // Opaque handle to an entry stored in the cache.
+  // 表示结点的结构体
   struct Handle {};
 
   // Insert a mapping from key->value into the cache and assign it
@@ -54,6 +55,9 @@ class LEVELDB_EXPORT Cache {
   //
   // When the inserted entry is no longer needed, the key and
   // value will be passed to "deleter".
+  // 插入键值对，并指定占用的缓存大小（charge），返回被插入的结点。
+  // 如果插入的键值对用不到了，传给deleter函数。
+  // 如果返回值用不到了，记得调用this->Release(handle)释放。
   virtual Handle* Insert(const Slice& key, void* value, size_t charge,
                          void (*deleter)(const Slice& key, void* value)) = 0;
 
@@ -62,18 +66,23 @@ class LEVELDB_EXPORT Cache {
   // Else return a handle that corresponds to the mapping.  The caller
   // must call this->Release(handle) when the returned mapping is no
   // longer needed.
+  // 如果没找到结点，返回NULL。否则返回找到的结点。
+  // 如果返回值用不到了，记得调用this->Release(handle)释放。
   virtual Handle* Lookup(const Slice& key) = 0;
 
   // Release a mapping returned by a previous Lookup().
   // REQUIRES: handle must not have been released yet.
   // REQUIRES: handle must have been returned by a method on *this.
+
   virtual void Release(Handle* handle) = 0;
 
   // Return the value encapsulated in a handle returned by a
   // successful Lookup().
   // REQUIRES: handle must not have been released yet.
   // REQUIRES: handle must have been returned by a method on *this.
-  virtual void* Value(Handle* handle) = 0;
+    // 返回结点handle中的Value值，注意判断handle的有效性。
+
+    virtual void* Value(Handle* handle) = 0;
 
   // If the cache contains entry for key, erase it.  Note that the
   // underlying entry will be kept around until all existing handles

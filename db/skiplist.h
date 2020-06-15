@@ -338,9 +338,11 @@ void SkipList<Key, Comparator>::Insert(const Key& key) {
   // TODO(opt): We can use a barrier-free variant of FindGreaterOrEqual()
   // here since Insert() is externally synchronized.
   Node* prev[kMaxHeight];
-  Node* x = FindGreaterOrEqual(key, prev);
+    // 返回大于等于key的结点或者NULL，原因详见FindGreaterOrEqual的分析
+    Node* x = FindGreaterOrEqual(key, prev);
 
   // Our data structure does not allow duplicate insertion
+    // 不允许插入重复的值
   assert(x == nullptr || !Equal(key, x->key));
 
   int height = RandomHeight();

@@ -43,14 +43,14 @@ class MergingIterator : public Iterator {
     FindLargest();
     direction_ = kReverse;
   }
-
-  void Seek(const Slice& target) override {
-    for (int i = 0; i < n_; i++) {
-      children_[i].Seek(target);
+    //首先是所有Iterator*都查找target，然后通过FindSmallest找到最小的那个，记录到current_
+    void Seek(const Slice& target) override {
+        for (int i = 0; i < n_; i++) {
+          children_[i].Seek(target);
+        }
+        FindSmallest();
+        direction_ = kForward;
     }
-    FindSmallest();
-    direction_ = kForward;
-  }
 
   void Next() override {
     assert(Valid());

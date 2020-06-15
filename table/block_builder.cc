@@ -59,7 +59,7 @@ size_t BlockBuilder::CurrentSizeEstimate() const {
 }
 
 Slice BlockBuilder::Finish() {
-  // Append restart array
+  // Append restart array 把重启点的数据加到后面
   for (size_t i = 0; i < restarts_.size(); i++) {
     PutFixed32(&buffer_, restarts_[i]);
   }
@@ -70,37 +70,39 @@ Slice BlockBuilder::Finish() {
 
 void BlockBuilder::Add(const Slice& key, const Slice& value) {
   Slice last_key_piece(last_key_);
-  assert(!finished_);
+  assert(!finished_); //还没有调用Finish()
   assert(counter_ <= options_->block_restart_interval);
-  assert(buffer_.empty()  // No values yet?
+  assert(buffer_.empty()  // No values yet? 这个为啥要求越来越大，因为是从小到大往文件中写的
          || options_->comparator->Compare(key, last_key_piece) > 0);
   size_t shared = 0;
   if (counter_ < options_->block_restart_interval) {
     // See how much sharing to do with previous string
     const size_t min_length = std::min(last_key_piece.size(), key.size());
-    while ((shared < min_length) && (last_key_piece[shared] == key[shared])) {
+    while ((shared < min_length) && (last_key_piece[shared] == key[shared])) {//找出最长共同前缀
       shared++;
     }
   } else {
-    // Restart compression
+    // Restart compression 到达重置重启点的时候了
     restarts_.push_back(buffer_.size());
     counter_ = 0;
   }
+
   const size_t non_shared = key.size() - shared;
 
   // Add "<shared><non_shared><value_size>" to buffer_
-  PutVarint32(&buffer_, shared);
-  PutVarint32(&buffer_, non_shared);
-  PutVarint32(&buffer_, value.size());
+  PutVarint32(&buffer_, shared); //编码共享前缀的大小
+  PutVarint32(&buffer_, non_shared); //编码不同数据的大小
+  PutVarint32(&buffer_, value.size()); //编码value的大小
 
   // Add string delta to buffer_ followed by value
-  buffer_.append(key.data() + shared, non_shared);
-  buffer_.append(value.data(), value.size());
+  buffer_.append(key.data() + shared, non_shared); //把没有共享的数据添加到buffer
+  buffer_.append(value.data(), value.size()); //添加data
 
-  // Update state
+  // Update state 重置last_key
   last_key_.resize(shared);
   last_key_.append(key.data() + shared, non_shared);
-  assert(Slice(last_key_) == key);
+    // 上面两句其实等效于last_key_=key.ToString()，但是像上面那样写可以使内存copy最小化
+    assert(Slice(last_key_) == key);
   counter_++;
 }
 

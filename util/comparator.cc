@@ -27,7 +27,7 @@ class BytewiseComparatorImpl : public Comparator {
   int Compare(const Slice& a, const Slice& b) const override {
     return a.compare(b);
   }
-
+  //FindShortestSeparator找到start、limit之间最短的字符串，如“helloworld”和”hellozoomer”之间最短的key可以是”hellox”。
   void FindShortestSeparator(std::string* start,
                              const Slice& limit) const override {
     // Find length of common prefix
@@ -37,8 +37,8 @@ class BytewiseComparatorImpl : public Comparator {
            ((*start)[diff_index] == limit[diff_index])) {
       diff_index++;
     }
-
-    if (diff_index >= min_length) {
+      // 如果一个字符串是另个一字符串的前缀，无需做截短操作，否则进入else。
+      if (diff_index >= min_length) {
       // Do not shorten if one string is a prefix of the other
     } else {
       uint8_t diff_byte = static_cast<uint8_t>((*start)[diff_index]);
@@ -50,7 +50,7 @@ class BytewiseComparatorImpl : public Comparator {
       }
     }
   }
-
+    // FindShortSuccessor则更极端，用于找到比key大的最短字符串，如传入“helloworld”，返回的key可能是“i”而已
   void FindShortSuccessor(std::string* key) const override {
     // Find first character that can be incremented
     size_t n = key->size();

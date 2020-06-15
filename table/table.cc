@@ -44,6 +44,7 @@ Status Table::Open(const Options& options, RandomAccessFile* file,
 
   char footer_space[Footer::kEncodedLength];
   Slice footer_input;
+  //读取footer的数据
   Status s = file->Read(size - Footer::kEncodedLength, Footer::kEncodedLength,
                         &footer_input, footer_space);
   if (!s.ok()) return s;
@@ -58,6 +59,7 @@ Status Table::Open(const Options& options, RandomAccessFile* file,
   if (options.paranoid_checks) {
     opt.verify_checksums = true;
   }
+  //读取index block的内容
   s = ReadBlock(file, opt, footer.index_handle(), &index_block_contents);
 
   if (s.ok()) {
@@ -98,10 +100,11 @@ void Table::ReadMeta(const Footer& footer) {
   Block* meta = new Block(contents);
 
   Iterator* iter = meta->NewIterator(BytewiseComparator());
+
   std::string key = "filter.";
   key.append(rep_->options.filter_policy->Name());
   iter->Seek(key);
-  if (iter->Valid() && iter->key() == Slice(key)) {
+  if (iter->Valid() && iter->key() == Slice(key)) {//读取对应filter policy的数据。。
     ReadFilter(iter->value());
   }
   delete iter;
@@ -165,13 +168,15 @@ Iterator* Table::BlockReader(void* arg, const ReadOptions& options,
 
   if (s.ok()) {
     BlockContents contents;
-    if (block_cache != nullptr) {
+    if (block_cache != nullptr) {//block cache
       char cache_key_buffer[16];
       EncodeFixed64(cache_key_buffer, table->rep_->cache_id);
       EncodeFixed64(cache_key_buffer + 8, handle.offset());
       Slice key(cache_key_buffer, sizeof(cache_key_buffer));
+
       cache_handle = block_cache->Lookup(key);
       if (cache_handle != nullptr) {
+          //对应的cache_handler里面有，则直接从cache里面取
         block = reinterpret_cast<Block*>(block_cache->Value(cache_handle));
       } else {
         s = ReadBlock(table->rep_->file, options, handle, &contents);
@@ -184,6 +189,7 @@ Iterator* Table::BlockReader(void* arg, const ReadOptions& options,
         }
       }
     } else {
+        //读取block,读的时候，是按照一个block读取的吗
       s = ReadBlock(table->rep_->file, options, handle, &contents);
       if (s.ok()) {
         block = new Block(contents);
@@ -215,12 +221,14 @@ Status Table::InternalGet(const ReadOptions& options, const Slice& k, void* arg,
                           void (*handle_result)(void*, const Slice&,
                                                 const Slice&)) {
   Status s;
+  //先从index_block定位到在哪个block
   Iterator* iiter = rep_->index_block->NewIterator(rep_->options.comparator);
   iiter->Seek(k);
   if (iiter->Valid()) {
     Slice handle_value = iiter->value();
     FilterBlockReader* filter = rep_->filter;
     BlockHandle handle;
+    //然后利用filter判断对应的key是否存在于该block内
     if (filter != nullptr && handle.DecodeFrom(&handle_value).ok() &&
         !filter->KeyMayMatch(handle.offset(), k)) {
       // Not found

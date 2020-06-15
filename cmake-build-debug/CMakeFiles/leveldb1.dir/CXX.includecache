@@ -1,0 +1,26 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/Users/zy/code/leveldb/my_test/table_test.cpp
+sys/types.h
+-
+sys/stat.h
+-
+unistd.h
+-
+assert.h
+-
+iostream
+-
+leveldb/db.h
+/Users/zy/code/leveldb/my_test/leveldb/db.h
+leveldb/env.h
+/Users/zy/code/leveldb/my_test/leveldb/env.h
+leveldb/table.h
+/Users/zy/code/leveldb/my_test/leveldb/table.h
+
